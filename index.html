@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片轮播</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* 顶部栏 */
+  .header {
+    width: 100%;
+    padding: 24px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-bottom: 1px solid #2a2a4a;
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  /* 按钮 */
+  .btn {
+    padding: 10px 22px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s ease;
+  }
+  .btn-upload {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+  }
+  .btn-upload:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(102,126,234,0.4); }
+  .btn-control {
+    background: #2a2a4a;
+    color: #ccc;
+    padding: 10px 16px;
+  }
+  .btn-control:hover { background: #3a3a5a; color: #fff; }
+  .btn-control.active { background: #667eea; color: #fff; }
+
+  /* 轮播区域 */
+  .carousel-wrapper {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 32px;
+    gap: 24px;
+    overflow: hidden;
+  }
+
+  .carousel-row {
+    position: relative;
+    width: 100%;
+    height: 45%;
+    min-height: 200px;
+    overflow: hidden;
+    border-radius: 16px;
+    background: #1a1a2e;
+    border: 1px solid #2a2a4a;
+  }
+
+  .carousel-track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .carousel-slide {
+    min-width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .carousel-slide img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    user-select: none;
+  }
+
+  /* 空状态 */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: #555;
+    width: 100%;
+    height: 100%;
+  }
+  .empty-state svg { opacity: 0.3; }
+  .empty-state p { font-size: 15px; }
+
+  /* 指示器 */
+  .indicators {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 10;
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .dot.active {
+    background: #667eea;
+    width: 24px;
+    border-radius: 4px;
+  }
+
+  /* 左右箭头 */
+  .arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .carousel-row:hover .arrow { opacity: 1; }
+  .arrow:hover { background: rgba(102,126,234,0.6); }
+  .arrow-left { left: 12px; }
+  .arrow-right { right: 12px; }
+
+  /* 图片计数 */
+  .slide-counter {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: rgba(0,0,0,0.5);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #aaa;
+    z-index: 10;
+  }
+
+  /* 隐藏文件输入 */
+  #fileInput { display: none; }
+
+  /* 响应式 */
+  @media (max-width: 768px) {
+    .header { padding: 16px; }
+    .carousel-wrapper { padding: 16px; gap: 16px; }
+    .header h1 { font-size: 18px; }
+    .btn { padding: 8px 16px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🖼️ 图片轮播</h1>
+  <div class="header-actions">
+    <button class="btn btn-control active" id="btnAutoPlay" onclick="toggleAutoPlay()">⏸ 暂停</button>
+    <button class="btn btn-upload" onclick="document.getElementById('fileInput').click()">➕ 上传图片</button>
+  </div>
+</div>
+
+<input type="file" id="fileInput" multiple accept="image/*" onchange="handleUpload(event)">
+
+<div class="carousel-wrapper">
+  <!-- 第一行轮播 -->
+  <div class="carousel-row" id="row1">
+    <button class="arrow arrow-left" onclick="slideRow(0,-1)">‹</button>
+    <button class="arrow arrow-right" onclick="slideRow(0,1)">›</button>
+    <div class="carousel-track" id="track1"></div>
+    <div class="indicators" id="indicators1"></div>
+    <div class="slide-counter" id="counter1"></div>
+  </div>
+  <!-- 第二行轮播 -->
+  <div class="carousel-row" id="row2">
+    <button class="arrow arrow-left" onclick="slideRow(1,-1)">‹</button>
+    <button class="arrow arrow-right" onclick="slideRow(1,1)">›</button>
+    <div class="carousel-track" id="track2"></div>
+    <div class="indicators" id="indicators2"></div>
+    <div class="slide-counter" id="counter2"></div>
+  </div>
+</div>
+
+<script>
+  // 所有图片数据
+  let allImages = [];
+  // 每行图片索引
+  let rowImages = [[], []];
+  // 每行当前索引
+  let rowIndices = [0, 0];
+  // 自动播放
+  let autoPlay = true;
+  let autoTimer = null;
+  const INTERVAL = 3000; // 3秒切换
+
+  // 处理上传
+  function handleUpload(e) {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    files.forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        allImages.push(ev.target.result);
+        distributeImages();
+      };
+      reader.readAsDataURL(file);
+    });
+    // 清空 input 以便重复上传相同文件
+    e.target.value = '';
+  }
+
+  // 将图片分配到两行
+  function distributeImages() {
+    rowImages = [[], []];
+    allImages.forEach((img, i) => {
+      rowImages[i % 2].push(img);
+    });
+    renderRow(0);
+    renderRow(1);
+  }
+
+  // 渲染某一行
+  function renderRow(rowIndex) {
+    const track = document.getElementById('track' + (rowIndex + 1));
+    const indicators = document.getElementById('indicators' + (rowIndex + 1));
+    const counter = document.getElementById('counter' + (rowIndex + 1));
+    const images = rowImages[rowIndex];
+
+    if (images.length === 0) {
+      track.innerHTML = `
+        <div class="carousel-slide">
+          <div class="empty-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+            <p>上传图片开始轮播</p>
+          </div>
+        </div>`;
+      indicators.innerHTML = '';
+      counter.textContent = '';
+      return;
+    }
+
+    // 确保 index 在范围内
+    if (rowIndices[rowIndex] >= images.length) rowIndices[rowIndex] = 0;
+    if (rowIndices[rowIndex] < 0) rowIndices[rowIndex] = images.length - 1;
+
+    const idx = rowIndices[rowIndex];
+
+    track.innerHTML = images.map((src, i) => `
+      <div class="carousel-slide">
+        <img src="${src}" alt="图片 ${i + 1}" draggable="false">
+      </div>
+    `).join('');
+
+    track.style.transform = `translateX(-${idx * 100}%)`;
+
+    // 指示器
+    indicators.innerHTML = images.map((_, i) =>
+      `<div class="dot ${i === idx ? 'active' : ''}" onclick="goToSlide(${rowIndex}, ${i})"></div>`
+    ).join('');
+
+    // 计数器
+    counter.textContent = `${idx + 1} / ${images.length}`;
+  }
+
+  // 切换幻灯片
+  function slideRow(rowIndex, direction) {
+    const images = rowImages[rowIndex];
+    if (images.length === 0) return;
+    rowIndices[rowIndex] += direction;
+    if (rowIndices[rowIndex] >= images.length) rowIndices[rowIndex] = 0;
+    if (rowIndices[rowIndex] < 0) rowIndices[rowIndex] = images.length - 1;
+    renderRow(rowIndex);
+  }
+
+  // 跳转到指定幻灯片
+  function goToSlide(rowIndex, index) {
+    rowIndices[rowIndex] = index;
+    renderRow(rowIndex);
+  }
+
+  // 自动播放
+  function toggleAutoPlay() {
+    autoPlay = !autoPlay;
+    const btn = document.getElementById('btnAutoPlay');
+    if (autoPlay) {
+      btn.textContent = '⏸ 暂停';
+      btn.classList.add('active');
+      startAutoPlay();
+    } else {
+      btn.textContent = '▶ 播放';
+      btn.classList.remove('active');
+      stopAutoPlay();
+    }
+  }
+
+  function startAutoPlay() {
+    stopAutoPlay();
+    autoTimer = setInterval(() => {
+      slideRow(0, 1);
+      setTimeout(() => slideRow(1, 1), 300); // 第二行稍微延迟，错开切换
+    }, INTERVAL);
+  }
+
+  function stopAutoPlay() {
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  }
+
+  // 键盘控制
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') slideRow(0, -1);
+    if (e.key === 'ArrowRight') slideRow(0, 1);
+  });
+
+  // 初始化空状态
+  renderRow(0);
+  renderRow(1);
+  startAutoPlay();
+</script>
+
+</body>
+</html>
